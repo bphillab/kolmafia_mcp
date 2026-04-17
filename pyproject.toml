@@ -1,0 +1,12 @@
+[project]
+name = "kolmafia-mcp"
+version = "0.1.0"
+description = "MCP server for KoLMafia (Kingdom of Loathing automation client)"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp>=1.27.0",
+]
+
+[project.scripts]
+kolmafia-mcp = "kolmafia_mcp.server:main"
