@@ -64,6 +64,37 @@ async def get_effects() -> str:
 
 
 @mcp.tool()
+async def get_skills() -> str:
+    """
+    Return all skills known by the player, grouped by type (Passive, Buff,
+    Combat, etc.) with MP cost and buff duration where applicable.
+    """
+    try:
+        skills = await relay.get_skills()
+    except httpx.ConnectError:
+        return "Error: could not connect to KoLMafia relay (is KoLMafia running?)"
+    except Exception as e:
+        return f"Error fetching skills: {e}"
+
+    if not skills:
+        return "No skills found."
+
+    by_type: dict[str, list[str]] = {}
+    for s in skills:
+        lines = by_type.setdefault(s["type"], [])
+        detail = f"  {s['name']} (MP: {s['mp_cost']}"
+        if s["duration"]:
+            detail += f", {s['duration']} turns"
+        detail += ")"
+        lines.append(detail)
+
+    sections = []
+    for skill_type in sorted(by_type):
+        sections.append(f"{skill_type}:\n" + "\n".join(by_type[skill_type]))
+    return "\n\n".join(sections)
+
+
+@mcp.tool()
 async def search_inventory(query: str) -> str:
     """
     Search inventory for items whose names contain the query string

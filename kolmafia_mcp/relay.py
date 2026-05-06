@@ -109,6 +109,38 @@ async def get_inventory() -> dict[str, int]:
     return {item_db.name_for(item_id): int(qty) for item_id, qty in raw.items()}
 
 
+_SKILL_TYPES = {
+    0: "Passive",
+    1: "Noncombat",
+    2: "Buff",
+    3: "Combat",
+    4: "Summon",
+    5: "Other",
+    6: "Song",
+    7: "Combat Passive",
+    8: "Expression",
+    9: "Walk",
+}
+
+
+async def get_skills() -> list[dict]:
+    """
+    Returns a list of known skills, each with name, type, mp_cost, and
+    duration (turns; 0 for non-buffs). Sourced from api.php?what=skills.
+    Each raw value is an array: [name, type_id, mp_cost, duration, ...].
+    """
+    raw: dict = await _api_get("skills")
+    skills = []
+    for v in raw.values():
+        skills.append({
+            "name": v[0],
+            "type": _SKILL_TYPES.get(v[1], f"type_{v[1]}"),
+            "mp_cost": v[2],
+            "duration": v[3],
+        })
+    return sorted(skills, key=lambda s: s["name"])
+
+
 async def get_equipment() -> dict[str, str]:
     """
     Returns {slot: item_name}.
