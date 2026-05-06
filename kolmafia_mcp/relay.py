@@ -113,7 +113,7 @@ async def get_inventory() -> dict[str, int]:
 async def get_skills() -> str:
     """
     Scrapes charsheet.php and extracts skill names grouped by section.
-    Active skills appear as <a onclick="skilluse(...)">Name</a>.
+    Skills link to desc_skill.php?whichskill=N via href or onClick.
     Section headers appear as <b>... Skills</b>.
     """
     import re
@@ -128,19 +128,15 @@ async def get_skills() -> str:
     parts = re.split(r'<b>([^<]*[Ss]kills?[^<]*)</b>', raw)
 
     if len(parts) < 3:
-        names = re.findall(r'<a[^>]+skilluse[^>]*>([^<]+)</a>', raw)
-        if names:
-            return "\n".join(sorted(set(names)))
-        # Diagnostic: show first 5 <a> tags to identify the real link format
-        sample = re.findall(r'<a[^>]*>[^<]*</a>', raw)[:5]
-        return "No skills found. Sample <a> tags:\n" + "\n".join(sample)
+        names = re.findall(r'<a[^>]+desc_skill\.php[^>]*>([^<]+)</a>', raw)
+        return "\n".join(sorted(set(names))) if names else "No skills found in charsheet."
 
     lines: list[str] = []
     # parts = [pre, header1, body1, header2, body2, ...]
     for i in range(1, len(parts) - 1, 2):
         header = parts[i].strip()
         body = parts[i + 1]
-        names = re.findall(r'<a[^>]+skilluse[^>]*>([^<]+)</a>', body)
+        names = re.findall(r'<a[^>]+desc_skill\.php[^>]*>([^<]+)</a>', body)
         if names:
             lines.append(header)
             lines.extend(f"  {n}" for n in names)
