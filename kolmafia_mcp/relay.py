@@ -123,13 +123,27 @@ _SKILL_TYPES = {
 }
 
 
-async def get_skills() -> list[dict]:
+async def get_skills() -> list[dict] | str:
     """
     Returns a list of known skills, each with name, type, mp_cost, and
     duration (turns; 0 for non-buffs). Sourced from api.php?what=skills.
     Each raw value is an array: [name, type_id, mp_cost, duration, ...].
+    Returns the raw JSON string if the response format is unrecognised.
     """
-    raw: dict = await _api_get("skills")
+    import json as _json
+    raw = await _api_get("skills")
+
+    # Some KoLMafia versions wrap the list under a "skills" key.
+    if isinstance(raw, dict) and "skills" in raw and isinstance(raw["skills"], dict):
+        raw = raw["skills"]
+
+    if not isinstance(raw, dict) or not raw:
+        return _json.dumps(raw)
+
+    first = next(iter(raw.values()))
+    if not isinstance(first, list) or len(first) < 4:
+        return _json.dumps(raw)
+
     skills = []
     for v in raw.values():
         skills.append({

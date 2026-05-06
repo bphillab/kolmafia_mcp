@@ -76,6 +76,8 @@ async def get_skills() -> str:
     except Exception as e:
         return f"Error fetching skills: {e}"
 
+    if isinstance(skills, str):
+        return f"Could not parse skills response — raw API output:\n{skills}"
     if not skills:
         return "No skills found."
 
