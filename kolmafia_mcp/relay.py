@@ -111,8 +111,11 @@ async def get_inventory() -> dict[str, int]:
 
 
 async def get_skills() -> str:
-    """Returns skill list text from the gCLI 'skills' command."""
-    return await _gcli_capture("skills")
+    """Scrapes charsheet.php and returns raw stripped text for skill parsing."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{RELAY_BASE}/charsheet.php", timeout=TIMEOUT)
+        resp.raise_for_status()
+    return _strip_html(resp.text)
 
 
 async def get_equipment() -> dict[str, str]:
