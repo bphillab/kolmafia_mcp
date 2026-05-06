@@ -67,12 +67,8 @@ async def _get_pwd_hash() -> str:
     return _pwd_hash
 
 
-async def submit_gcli(command: str) -> str:
-    """
-    Submit a gCLI command to KoLMafia.
-    Output appears in KoLMafia's CLI window; it cannot be captured via HTTP.
-    Returns a confirmation string.
-    """
+async def _gcli_capture(command: str) -> str:
+    """Submit a gCLI command and return the stripped text output."""
     pwd = await _get_pwd_hash()
     async with httpx.AsyncClient() as client:
         resp = await client.post(
@@ -82,7 +78,11 @@ async def submit_gcli(command: str) -> str:
             timeout=TIMEOUT,
         )
         resp.raise_for_status()
-    return f"Command submitted: {command!r}  (output visible in KoLMafia's CLI window)"
+    return _strip_html(resp.text)
+
+
+async def submit_gcli(command: str) -> str:
+    return await _gcli_capture(command)
 
 
 async def get_status() -> dict:
@@ -109,50 +109,10 @@ async def get_inventory() -> dict[str, int]:
     return {item_db.name_for(item_id): int(qty) for item_id, qty in raw.items()}
 
 
-_SKILL_TYPES = {
-    0: "Passive",
-    1: "Noncombat",
-    2: "Buff",
-    3: "Combat",
-    4: "Summon",
-    5: "Other",
-    6: "Song",
-    7: "Combat Passive",
-    8: "Expression",
-    9: "Walk",
-}
 
-
-async def get_skills() -> list[dict] | str:
-    """
-    Returns a list of known skills, each with name, type, mp_cost, and
-    duration (turns; 0 for non-buffs). Sourced from api.php?what=skills.
-    Each raw value is an array: [name, type_id, mp_cost, duration, ...].
-    Returns the raw JSON string if the response format is unrecognised.
-    """
-    import json as _json
-    raw = await _api_get("skills")
-
-    # Some KoLMafia versions wrap the list under a "skills" key.
-    if isinstance(raw, dict) and "skills" in raw and isinstance(raw["skills"], dict):
-        raw = raw["skills"]
-
-    if not isinstance(raw, dict) or not raw:
-        return _json.dumps(raw)
-
-    first = next(iter(raw.values()))
-    if not isinstance(first, list) or len(first) < 4:
-        return _json.dumps(raw)
-
-    skills = []
-    for v in raw.values():
-        skills.append({
-            "name": v[0],
-            "type": _SKILL_TYPES.get(v[1], f"type_{v[1]}"),
-            "mp_cost": v[2],
-            "duration": v[3],
-        })
-    return sorted(skills, key=lambda s: s["name"])
+async def get_skills() -> str:
+    """Returns skill list text from the gCLI 'skills' command."""
+    return await _gcli_capture("skills")
 
 
 async def get_equipment() -> dict[str, str]:

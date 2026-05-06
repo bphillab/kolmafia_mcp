@@ -20,7 +20,7 @@ async def submit_gcli(command: str) -> str:
     """
     Submit a gCLI command to KoLMafia and return its output.
 
-    Examples: 'status', 'buy 1 meat paste', 'use 1 milk of magnesium',
+    Examples: 'buy 1 meat paste', 'use 1 milk of magnesium',
               'equip seal-clubbing club', 'adventure 5 Haunted Pantry'
     """
     try:
@@ -70,30 +70,11 @@ async def get_skills() -> str:
     Combat, etc.) with MP cost and buff duration where applicable.
     """
     try:
-        skills = await relay.get_skills()
+        return await relay.get_skills()
     except httpx.ConnectError:
         return "Error: could not connect to KoLMafia relay (is KoLMafia running?)"
     except Exception as e:
         return f"Error fetching skills: {e}"
-
-    if isinstance(skills, str):
-        return f"Could not parse skills response — raw API output:\n{skills}"
-    if not skills:
-        return "No skills found."
-
-    by_type: dict[str, list[str]] = {}
-    for s in skills:
-        lines = by_type.setdefault(s["type"], [])
-        detail = f"  {s['name']} (MP: {s['mp_cost']}"
-        if s["duration"]:
-            detail += f", {s['duration']} turns"
-        detail += ")"
-        lines.append(detail)
-
-    sections = []
-    for skill_type in sorted(by_type):
-        sections.append(f"{skill_type}:\n" + "\n".join(by_type[skill_type]))
-    return "\n\n".join(sections)
 
 
 @mcp.tool()
