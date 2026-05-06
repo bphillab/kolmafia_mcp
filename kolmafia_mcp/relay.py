@@ -128,9 +128,12 @@ async def get_skills() -> str:
     parts = re.split(r'<b>([^<]*[Ss]kills?[^<]*)</b>', raw)
 
     if len(parts) < 3:
-        # No section headers found — just return all skill names flat
         names = re.findall(r'<a[^>]+skilluse[^>]*>([^<]+)</a>', raw)
-        return "\n".join(sorted(set(names))) if names else "No skills found in charsheet."
+        if names:
+            return "\n".join(sorted(set(names)))
+        # Diagnostic: show first 5 <a> tags to identify the real link format
+        sample = re.findall(r'<a[^>]*>[^<]*</a>', raw)[:5]
+        return "No skills found. Sample <a> tags:\n" + "\n".join(sample)
 
     lines: list[str] = []
     # parts = [pre, header1, body1, header2, body2, ...]
