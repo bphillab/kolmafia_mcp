@@ -111,11 +111,13 @@ async def get_inventory() -> dict[str, int]:
 
 
 async def get_skills() -> str:
-    """Scrapes charsheet.php and returns raw stripped text for skill parsing."""
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"{RELAY_BASE}/charsheet.php", timeout=TIMEOUT)
         resp.raise_for_status()
-    return _strip_html(resp.text)
+    raw = resp.text
+    if not raw:
+        return f"[DIAG] charsheet.php returned empty body (HTTP {resp.status_code})"
+    return f"[DIAG] HTTP {resp.status_code}, {len(raw)} chars\n{raw[:800]}"
 
 
 async def get_equipment() -> dict[str, str]:
