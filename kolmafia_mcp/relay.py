@@ -111,13 +111,37 @@ async def get_inventory() -> dict[str, int]:
 
 
 async def get_skills() -> str:
+    """
+    Scrapes charsheet.php and extracts skill names grouped by section.
+    Active skills appear as <a onclick="skilluse(...)">Name</a>.
+    Section headers appear as <b>... Skills</b>.
+    """
+    import re
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"{RELAY_BASE}/charsheet.php", timeout=TIMEOUT)
         resp.raise_for_status()
     raw = resp.text
     if not raw:
-        return f"[DIAG] charsheet.php returned empty body (HTTP {resp.status_code})"
-    return f"[DIAG] HTTP {resp.status_code}, {len(raw)} chars\n{raw[:800]}"
+        return "charsheet.php returned an empty response."
+
+    # Split on section headers like <b>Combat Skills</b> or <b>Seal Clubber Skills</b>
+    parts = re.split(r'<b>([^<]*[Ss]kills?[^<]*)</b>', raw)
+
+    if len(parts) < 3:
+        # No section headers found — just return all skill names flat
+        names = re.findall(r'<a[^>]+skilluse[^>]*>([^<]+)</a>', raw)
+        return "\n".join(sorted(set(names))) if names else "No skills found in charsheet."
+
+    lines: list[str] = []
+    # parts = [pre, header1, body1, header2, body2, ...]
+    for i in range(1, len(parts) - 1, 2):
+        header = parts[i].strip()
+        body = parts[i + 1]
+        names = re.findall(r'<a[^>]+skilluse[^>]*>([^<]+)</a>', body)
+        if names:
+            lines.append(header)
+            lines.extend(f"  {n}" for n in names)
+    return "\n".join(lines) if lines else "No skills found in charsheet."
 
 
 async def get_equipment() -> dict[str, str]:
