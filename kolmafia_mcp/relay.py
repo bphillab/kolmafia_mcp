@@ -69,6 +69,7 @@ async def _get_pwd_hash() -> str:
 
 async def _gcli_capture(command: str) -> str:
     """Submit a gCLI command and return the stripped text output."""
+    global _pwd_hash
     pwd = await _get_pwd_hash()
     async with httpx.AsyncClient() as client:
         resp = await client.post(
@@ -77,6 +78,15 @@ async def _gcli_capture(command: str) -> str:
             headers={"Referer": f"{RELAY_BASE}/"},
             timeout=TIMEOUT,
         )
+        if resp.status_code == 401:
+            _pwd_hash = None
+            pwd = await _get_pwd_hash()
+            resp = await client.post(
+                f"{RELAY_BASE}/KoLmafia/submitCommand",
+                data={"cmd": command, "pwd": pwd},
+                headers={"Referer": f"{RELAY_BASE}/"},
+                timeout=TIMEOUT,
+            )
         resp.raise_for_status()
     return _strip_html(resp.text)
 
