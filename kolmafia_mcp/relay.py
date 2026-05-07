@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from kolmafia_mcp import items as item_db
+from kolmafia_mcp import skills as skill_db
 
 RELAY_BASE = "http://localhost:60080"
 TIMEOUT = 30.0
@@ -120,17 +121,24 @@ async def get_inventory() -> dict[str, int]:
 
 
 
+async def _get_charsheet_html() -> str:
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{RELAY_BASE}/charsheet.php", timeout=TIMEOUT)
+        resp.raise_for_status()
+    return resp.text
+
+
+def _extract_skill_names(html: str) -> set[str]:
+    return set(re.findall(r'<a[^>]+desc_skill\.php[^>]*>([^<]+)</a>', html))
+
+
 async def get_skills() -> str:
     """
     Scrapes charsheet.php and extracts skill names grouped by section.
     Skills link to desc_skill.php?whichskill=N via href or onClick.
     Section headers appear as <b>... Skills</b>.
     """
-    import re
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{RELAY_BASE}/charsheet.php", timeout=TIMEOUT)
-        resp.raise_for_status()
-    raw = resp.text
+    raw = await _get_charsheet_html()
     if not raw:
         return "charsheet.php returned an empty response."
 
@@ -138,8 +146,8 @@ async def get_skills() -> str:
     parts = re.split(r'<b>([^<]*[Ss]kills?[^<]*)</b>', raw)
 
     if len(parts) < 3:
-        names = re.findall(r'<a[^>]+desc_skill\.php[^>]*>([^<]+)</a>', raw)
-        return "\n".join(sorted(set(names))) if names else "No skills found in charsheet."
+        names = _extract_skill_names(raw)
+        return "\n".join(sorted(names)) if names else "No skills found in charsheet."
 
     lines: list[str] = []
     # parts = [pre, header1, body1, header2, body2, ...]
@@ -151,6 +159,31 @@ async def get_skills() -> str:
             lines.append(header)
             lines.extend(f"  {n}" for n in names)
     return "\n".join(lines) if lines else "No skills found in charsheet."
+
+
+async def get_castable_buffs() -> str:
+    """
+    Returns all buff effects the player can cast with their known skills,
+    sorted by duration (longest first), with MP cost and effect name.
+    """
+    raw = await _get_charsheet_html()
+    if not raw:
+        return "charsheet.php returned an empty response."
+
+    known = _extract_skill_names(raw)
+    all_buffs = skill_db.all_castable_buffs()
+
+    matches = [b for name, b in all_buffs.items() if name in known]
+    if not matches:
+        return "No castable buff skills found."
+
+    matches.sort(key=lambda b: (-b.duration, b.skill_name))
+    lines: list[str] = []
+    for b in matches:
+        dur = f"{b.duration} turns" if b.duration else "variable turns"
+        mp = f"{b.mp_cost} MP" if b.mp_cost else "free"
+        lines.append(f"{b.skill_name} → {b.effect_name} ({dur}, {mp})")
+    return "\n".join(lines)
 
 
 async def get_equipment() -> dict[str, str]:

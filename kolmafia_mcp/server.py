@@ -78,6 +78,22 @@ async def get_skills() -> str:
 
 
 @mcp.tool()
+async def get_castable_buffs() -> str:
+    """
+    Return all buff effects the player can grant themselves by casting known
+    skills, sorted by duration (longest first). Useful for PvP prep: shows
+    which skills to cast, the resulting effect name, how many turns it lasts,
+    and its MP cost.
+    """
+    try:
+        return await relay.get_castable_buffs()
+    except httpx.ConnectError:
+        return "Error: could not connect to KoLMafia relay (is KoLMafia running?)"
+    except Exception as e:
+        return f"Error fetching castable buffs: {e}"
+
+
+@mcp.tool()
 async def search_inventory(query: str) -> str:
     """
     Search inventory for items whose names contain the query string
